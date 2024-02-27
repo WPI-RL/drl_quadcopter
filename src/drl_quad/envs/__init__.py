@@ -1,0 +1,12 @@
+from .aerial_robot_finalproject_tier1_task import AerialRobotFinalProjectTier1
+from .aerial_robot_finalproject_tier1_cfg import AerialRobotCfgFinalProjectTier1
+from .aerial_robot_finalproject_tier2_task import AerialRobotFinalProjectTier2
+from .aerial_robot_finalproject_tier2_cfg import AerialRobotCfgFinalProjectTier2
+
+
+import os
+
+from aerial_gym.utils.task_registry import task_registry
+
+task_registry.register("tier1", AerialRobotFinalProjectTier1, AerialRobotCfgFinalProjectTier1())
+task_registry.register("tier2", AerialRobotFinalProjectTier2, AerialRobotCfgFinalProjectTier2())
