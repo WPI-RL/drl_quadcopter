@@ -1,0 +1,98 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run No Args-Default-Tier1",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Train: Tier1-100",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "args": ["--train","--task=tier1","--num_episodes=100"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Train: Tier1-500",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "args": ["--train","--task=tier1","--num_episodes=500"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Train: Tier1-1000",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "args": ["--train","--task=tier1","--num_episodes=1000"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Run: Tier1  DEBUG",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "console": "integratedTerminal",
+            "args": ["--task=tier1", "--debug"],
+            "justMyCode": true
+        },
+        
+        {
+            "name": "Train: Tier2-100",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "args": ["--train","--task=tier2","--num_episodes=100"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Train: Tier2-500",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "args": ["--train","--task=tier2","--num_episodes=500"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Train: Tier2-1000",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "args": ["--train","--task=tier2","--num_episodes=1000"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Train: Tier2-2000",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "args": ["--train","--task=tier2","--num_episodes=2000"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Run: Tier2 DEBUG",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "console": "integratedTerminal",
+            "args": ["--task=tier2", "--debug"],
+            "justMyCode": true
+        },
+    ]
+}
