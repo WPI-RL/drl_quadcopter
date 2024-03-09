@@ -212,7 +212,7 @@ class DeepQLearningAgent:
             print(f"Goal position: {self.gym_iface.goal_position}\n")
             print(f"Start position: {self.gym_iface.get_current_position()}\n")
             state = State(
-                depth_image=self.gym_iface.get_image_set(),
+                depth_image=self.gym_iface.get_image(),
                 relative_position=self.gym_iface.get_current_position().unsqueeze(0)
             )
             episodeReward = 0.0
@@ -290,7 +290,7 @@ class DeepQLearningAgent:
             print(f"\n\n\nDeep-QL Execution episode: {ep+1}\n")
             print(f"Goal position: {self.gym_iface.goal_position}\n")
             state = State(
-                depth_image=self.gym_iface.get_image_set(),
+                depth_image=self.gym_iface.get_image(),
                 relative_position=self.gym_iface.get_current_position().unsqueeze(0)
             )
             for _ in range(num_time_steps):

@@ -9,37 +9,29 @@ class QuadrotorNeuralNetwork(nn.Module):
     def __init__(self, n_rel_x, n_rel_y, n_rel_z, n_actions):
         super(QuadrotorNeuralNetwork, self).__init__()
         # Separated layers for each relative position
-        self.x_layer1 = nn.Linear(n_rel_x, 8)
-        self.x_layer2 = nn.Linear(8, 8)
+        self.x_layer1 = nn.Linear(n_rel_x, 16)
+        self.x_layer2 = nn.Linear(16, 16)
         self.y_layer1 = nn.Linear(n_rel_y, 8)
-        self.y_layer2 = nn.Linear(8, 4)
+        self.y_layer2 = nn.Linear(8, 8)
         self.z_layer1 = nn.Linear(n_rel_z, 8)
-        self.z_layer2 = nn.Linear(8, 4)
+        self.z_layer2 = nn.Linear(8, 8)
 
         # Seperated layers for each camera image
-        self.camera_1_layer1 = nn.Linear(1024, 128)
+        self.camera_1_layer1 = nn.Conv2d(kernel_size=10, in_channels=2, out_channels=8, stride=2)
         torch.nn.init.xavier_uniform_(self.camera_1_layer1.weight)
         print(self.camera_1_layer1.weight)
-
-        self.camera_1_layer2 = nn.Linear(128, 16)
-        self.camera_1_layer3 = nn.Linear(16, 8)
-        self.camera_2_layer1 = nn.Linear(1024, 128)
-        torch.nn.init.xavier_uniform_(self.camera_2_layer1.weight)
-        self.camera_2_layer2 = nn.Linear(128, 16)
-        self.camera_2_layer3 = nn.Linear(16, 8)
-        self.camera_3_layer1 = nn.Linear(1024, 128)
-        torch.nn.init.xavier_uniform_(self.camera_3_layer1.weight)
-        self.camera_3_layer2 = nn.Linear(128, 16)
-        self.camera_3_layer3 = nn.Linear(16, 16)
+        self.camera_1_layer2 = nn.Conv2d(kernel_size=6, in_channels=8, out_channels=16, stride=1)
+        self.camera_1_layer3 = nn.Conv2d(kernel_size=3, in_channels=16, out_channels=32, stride=1)
+        self.camera_1_layer4 = nn.Linear(800, 64)
+        self.camera_1_layer5 = nn.Linear(64, 64)
 
         # Join the position layers
-        self.joint_layer1 = nn.Linear((8 + 4 + 4), 8)
+        self.joint_layer1 = nn.Linear((16 + 8 + 8), 16)
 
-        # Join the camera layers
-        self.camera_joint_layer1 = nn.Linear((8 + 8 + 16), 16)
+        self.joint_layer2 = nn.Linear((64 + 16), 64)
+        self.joined_layer1 = nn.Linear(64, 32)
 
-        self.joint_layer2 = nn.Linear((8 + 16), 32)
-        self.output_layer = nn.Linear(32, n_actions)
+        self.output_layer = nn.Linear(32, 18)
         self.optimizer = optim.Adam(self.parameters(), lr=.003)
         self.loss = nn.SmoothL1Loss()
         # Debug
@@ -52,46 +44,31 @@ class QuadrotorNeuralNetwork(nn.Module):
     def forward(self, state):
         # Feed into camera layers
         depth_im = state.depth_image
-        if depth_im.dim() == 2:
-            depth_im_1 = depth_im[0]
-            depth_im_1 = depth_im_1.unsqueeze(0)
-            depth_im_2 = depth_im[1]
-            depth_im_2 = depth_im_2.unsqueeze(0)
-            depth_im_3 = depth_im[2]
-            depth_im_3 = depth_im_3.unsqueeze(0)
-        elif depth_im.dim() == 3:
-            depth_im_1 = depth_im[:,0]
-            depth_im_2 = depth_im[:,1]
-            depth_im_3 = depth_im[:,2]
+        # if depth_im.dim() == 2:
+        #     depth_im_1 = depth_im[0]
+        #     depth_im_1 = depth_im_1.unsqueeze(0)
+        #     depth_im_2 = depth_im[1]
+        #     depth_im_2 = depth_im_2.unsqueeze(0)
+        #     depth_im_3 = depth_im[2]
+        #     depth_im_3 = depth_im_3.unsqueeze(0)
+        # elif depth_im.dim() == 3:
+        depth_im_1 = depth_im[:,0]
 
         if self.debug:
             print("depth_im_1: ", depth_im_1)
-            print("depth_im_2: ", depth_im_2)
-            print("depth_im_3: ", depth_im_3)
             print("depth_im_1.dim(): ", depth_im_1.dim())
-            print("depth_im_2.dim(): ", depth_im_2.dim())
-            print("depth_im_3.dim(): ", depth_im_3.dim())
             print("depth_im_1.shape: ", depth_im_1.shape)
-            print("depth_im_2.shape: ", depth_im_2.shape)
-            print("depth_im_3.shape: ", depth_im_3.shape)
 
-        cam1 = F.relu(self.camera_1_layer1(depth_im_1))
-        cam1 = F.relu(self.camera_1_layer2(cam1))
-        cam1 = F.relu(self.camera_1_layer3(cam1))
-        cam2 = F.relu(self.camera_2_layer1(depth_im_2))
-        cam2 = F.relu(self.camera_2_layer2(cam2))
-        cam2 = F.relu(self.camera_2_layer3(cam2))
-        cam3 = F.relu(self.camera_3_layer1(depth_im_3))
-        cam3 = F.relu(self.camera_3_layer2(cam3))
-        cam3 = F.relu(self.camera_3_layer3(cam3))
+        cam11 = F.relu(self.camera_1_layer1(depth_im_1))
+        cam12 = F.relu(self.camera_1_layer2(cam11))
+        cam13 = F.relu(self.camera_1_layer3(cam12))
+        #need serilization next
+        cam14 = F.relu(self.camera_1_layer4(cam13))
+        cam15 = F.relu(self.camera_1_layer5(cam14))
 
         if self.debug:
             print("cam1: ", cam1)
-            print("cam2: ", cam2)
-            print("cam3: ", cam3)
             print("cam1.dim(): ", cam1.dim())
-            print("cam2.dim(): ", cam2.dim())
-            print("cam3.dim(): ", cam3.dim())
 
         # Feed into position layers
         rel_pos = state.relative_position
@@ -127,9 +104,7 @@ class QuadrotorNeuralNetwork(nn.Module):
             print("z.shape: ", z.shape)
 
         joint_pos = torch.cat((x, y, z), dim=1)
-        joint_cam = torch.cat((cam1, cam2, cam3), dim=1)
         joint_pos = F.relu(self.joint_layer1(joint_pos))
-        joint_cam = F.relu(self.camera_joint_layer1(joint_cam))
-        joint_all = torch.cat((joint_pos, joint_cam), dim=1)
+        joint_all = torch.cat((joint_pos, cam15), dim=1)
         joint_all = F.relu(self.joint_layer2(joint_all))
         return self.output_layer(joint_all)

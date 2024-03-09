@@ -41,7 +41,7 @@ class GymInterface:
         # Set flag for first step done
         self.first_step_done = False
         # Current image array
-        self.image_set = torch.zeros((3, 1024), dtype=torch.float32, device=self.device)
+        self.image = torch.zeros((1, 1024), dtype=torch.float32, device=self.device)
         # Moving setpoint time counter
         self.moving_setpoint_time_counter = 0.0
         self.moving_setpoint_time_counter_increment = 0.5
@@ -106,9 +106,7 @@ class GymInterface:
                         print("Drone collided!")
                         collision = True
                     break
-            # If one of the last 3 samples, save image
-            if i_sample >= num_samples - 3:
-                self.image_set[i_sample - num_samples + 3] = self.env.get_depth_image()
+                    self.image = self.env.get_depth_image()
             if reset:
                 break
         
@@ -131,10 +129,10 @@ class GymInterface:
                                                                              self.get_current_position()), reset, near_goal
 
     def get_observation(self):
-        return State(self.image_set, self.get_relative_postion().unsqueeze(0))
+        return State(self.image, self.get_relative_postion().unsqueeze(0))
 
-    def get_image_set(self):
-        return self.image_set
+    def get_image(self):
+        return self.image
 
     def get_current_position(self):
         return self.env.get_current_position()[0]
