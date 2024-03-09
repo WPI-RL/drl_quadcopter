@@ -45,14 +45,18 @@ class QuadrotorNeuralNetwork(nn.Module):
         # Feed into camera layers
         depth_im = state.depth_image
         # if depth_im.dim() == 2:
-        #     depth_im_1 = depth_im[0]
-        #     depth_im_1 = depth_im_1.unsqueeze(0)
+        if depth_im.dim() == 0:
+            depth_im_1 = depth_im[0]
+            depth_im_1 = depth_im_1.unsqueeze(0)
+
+        else:
+            depth_im_1 = depth_im[:,0]
         #     depth_im_2 = depth_im[1]
         #     depth_im_2 = depth_im_2.unsqueeze(0)
         #     depth_im_3 = depth_im[2]
         #     depth_im_3 = depth_im_3.unsqueeze(0)
         # elif depth_im.dim() == 3:
-        depth_im_1 = depth_im[:,0]
+        # depth_im_1 = depth_im[:,0]
 
         if self.debug:
             print("depth_im_1: ", depth_im_1)
