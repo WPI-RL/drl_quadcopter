@@ -34,6 +34,7 @@ class GymInterface:
              [2.0, 12.0, 7.1]
              ], dtype=torch.float32, device=self.device)
         self.goal_position = self.goal_position_options[0]
+        self.env.reset_idx([0])
         # Get initial drone position
         self.initial_position = self.get_current_position().clone()
         if self.debug:
@@ -45,7 +46,7 @@ class GymInterface:
         # Moving setpoint time counter
         self.moving_setpoint_time_counter = 0.0
         self.moving_setpoint_time_counter_increment = 0.5
-        self.env.reset_idx([0])
+        
 
     def choose_new_goal_position(self):
         """Chooses a new goal position"""
@@ -131,7 +132,12 @@ class GymInterface:
                                                                              self.get_current_position()), reset, near_goal
 
     def get_observation(self):
-        return State(self.image_set, self.get_relative_postion().unsqueeze(0))
+        rel_position = self.get_relative_postion()
+        rel_position_unsqueeze = rel_position.unsqueeze(0)
+        if self.debug:
+            print("rel_position: ", rel_position)
+            print("rel_position_unsqueeze: ", rel_position_unsqueeze)
+        return State(self.image_set, rel_position_unsqueeze)
 
     def get_image_set(self):
         return self.image_set
