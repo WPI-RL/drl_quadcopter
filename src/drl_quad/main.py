@@ -44,8 +44,8 @@ class GymInterface:
         # Current image array
         self.image_set = torch.zeros((3, 1024), dtype=torch.float32, device=self.device)
         # Moving setpoint time counter
-        self.moving_setpoint_time_counter = 0.0
-        self.moving_setpoint_time_counter_increment = 0.5
+        self.moving_setpoint_time_counter = 1.0
+        self.moving_setpoint_time_counter_increment = 1
         
 
     def choose_new_goal_position(self):
@@ -177,9 +177,9 @@ class GymInterface:
             self.get_current_position())
         # This is the ghost setpoint that moves along the straight line path. Its distance
         # is something that we incrementally increase as time goes on.
-        distance_along_x_axis = self.moving_setpoint_time_counter - self.get_current_position()[0]
+        distance_along_x_axis = self.moving_setpoint_time_counter-(self.get_current_position()[0]-self.initial_position[0])
         # Now we use the Pythagorean theorem to calculate the relative distance
-        relative_distance = torch.sqrt(perpendicular_distance**2 + distance_along_x_axis**2)
+        relative_distance = torch.sqrt(self.get_current_position()[1]**2 + distance_along_x_axis**2)
         if self.debug:
             print("relative_distance: ", relative_distance)
         return relative_distance
