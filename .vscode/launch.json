@@ -35,7 +35,16 @@
             "type": "python",
             "request": "launch",
             "program": "./src/drl_quad/main.py",
-            "args": ["--train","--task=tier1","--num_episodes=1000"],
+            "args": ["--train","--task=tier1","--num_episodes=1000","--debug"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Train: Tier1-2000",
+            "type": "python",
+            "request": "launch",
+            "program": "./src/drl_quad/main.py",
+            "args": ["--train","--task=tier1","--num_episodes=2000"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
