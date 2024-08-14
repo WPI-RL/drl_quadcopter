@@ -33,7 +33,7 @@ class DeepQLearningAgent:
         # EPS_DECAY controls the rate of exponential decay of epsilon, higher means a slower decay
         # TAU is the update rate of the target network
         # LR is the learning rate of the ``AdamW`` optimizer
-        self.BATCH_SIZE = 64
+        self.BATCH_SIZE = 64 # TODO change back to 64
         self.GAMMA = 0.5
         self.EPS_START = 1.0
         self.EPS_END = 0.1
@@ -41,6 +41,7 @@ class DeepQLearningAgent:
         self.LR = 3e-3
 
         self.num_episodes = num_episodes
+        self.reached_goal_count=0.0
         self.num_time_steps = 100000
         self.EPS_DECAY = 0.25
         if self.num_episodes==100:
@@ -88,12 +89,13 @@ class DeepQLearningAgent:
 
         self.no_random_actions = False
 
-    def show_action_stats(self):
+    def show_episode_action_stats(self):
         """Shows percentage of actions taken by the neural network and random actions"""
         total_actions = self.num_nn_actions + self.num_random_actions
         print(f"Total actions: {total_actions}")
         print(f"NN actions: {self.num_nn_actions} ({self.num_nn_actions/total_actions*100}%)")
         print(f"Random actions: {self.num_random_actions} ({self.num_random_actions/total_actions*100}%)")
+        # self.reached_goal_count=0
         self.num_nn_actions = 0
         self.num_random_actions = 0
 
@@ -178,7 +180,8 @@ class DeepQLearningAgent:
             # state value or 0 in case the state was final.
             next_state_values = torch.zeros(self.BATCH_SIZE, device=device)
             # with torch.no_grad():
-            next_state_values[non_final_mask] = self.policy_net(non_final_next_states).max(1).values
+            # TODO: put back if issue: next_state_values[non_final_mask] = self.policy_net(non_final_next_states).max(1).values
+            next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1).values
             
             # Compute the expected Q values
             q_target = (next_state_values * self.GAMMA) + reward_batch
@@ -253,8 +256,8 @@ class DeepQLearningAgent:
                 # Perform one step of the optimization (on the policy network)
                 
 
-                # Soft update of the target network's weights
-                # θ′ ← τ θ + (1 −τ )θ′
+                # # Soft update of the target network's weights
+                # # θ′ ← τ θ + (1 −τ )θ′
                 # target_net_state_dict = self.target_net.state_dict()
                 # policy_net_state_dict = self.policy_net.state_dict()
                 # for key in policy_net_state_dict:
@@ -265,14 +268,21 @@ class DeepQLearningAgent:
                 if done:
                     print("\nEpisode ended due to termination or truncation\n")
                     break
-            if epochs_sincelast_optimize > 128:
+            if epochs_sincelast_optimize > 64:
                 epochs_sincelast_optimize = 0
                 self.optimize_model(ep)
                 # Save the model
                 torch.save(self.policy_net.state_dict(), self.MODEL_FILE_NAME)
+                 # Soft update of the target network's weights
+                # θ′ ← τ θ + (1 −τ )θ′
+                target_net_state_dict = self.target_net.state_dict()
+                policy_net_state_dict = self.policy_net.state_dict()
+                for key in policy_net_state_dict:
+                    target_net_state_dict[key] = policy_net_state_dict[key]*self.TAU + target_net_state_dict[key]*(1-self.TAU)
+                self.target_net.load_state_dict(target_net_state_dict)
             writer.add_scalar("episodeReward", episodeReward, ep)
             writer.add_scalar("AverageReward", episodeReward/episode_steps, ep)        
-            self.show_action_stats()
+            self.show_episode_action_stats()
         writer.close()
 
     def run(self):
@@ -284,27 +294,31 @@ class DeepQLearningAgent:
             num_episodes = 10
             num_time_steps = 1000
         epoch = 0
+        goal_completed = {}
         for ep in range(num_episodes):
+            
             # if ep % 2 == 0:
             #     self.gym_iface.choose_new_goal_position()
             print(f"\n\n\nDeep-QL Execution episode: {ep+1}\n")
+            
+            #self.gym_iface.env.reset_idx([0])
             print(f"Goal position: {self.gym_iface.goal_position}\n")
             state = State(
                 depth_image=self.gym_iface.get_image_set(),
                 relative_position=self.gym_iface.get_current_position().unsqueeze(0)
             )
+            
             for _ in range(num_time_steps):
                 epoch+=1
                 action = self.select_action(state,ep)
                 if self.debug:
                     print("Selected action: ", action)
                 # observation, reward, terminated, truncated, _ =
-                observation, reward, truncated, terminated = self.gym_iface.step(action.item())
+                observation, reward, truncated, near_goal = self.gym_iface.step(action.item())
                 reward = torch.tensor([reward], device=device)
-
-                done = terminated or truncated
-
-                if terminated:
+                
+                done = near_goal or truncated
+                if done:
                     next_state = None
                 else:
                     next_state = observation
@@ -312,11 +326,22 @@ class DeepQLearningAgent:
                 if self.debug:
                     print("reward: ", reward)
 
+                if near_goal:
+                    goal_completed[ep]=1
+                    self.reached_goal_count=sum(goal_completed.values())
+                    
+                    print("\nEpisode ended due to reaching goal\n")
+                
+                if near_goal and truncated:
+                    continue
+                
                 # Move to the next state
                 state = next_state
 
                 if done:
-                    print("\nEpisode ended due to termination or truncation\n")
+                    print("\nEpisode ended\n")
+                    self.show_episode_action_stats()
+                    done = False
                     break
-            self.show_action_stats()
+        print(f"Goal reached: ({self.reached_goal_count/self.num_episodes*100}%)")
         writer.close()
