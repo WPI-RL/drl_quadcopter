@@ -1,21 +1,24 @@
 import isaacgym
 from aerial_gym.envs import *
 from aerial_gym.utils import get_args, task_registry
+import isaacgym.gymutil
 import torch
 from action_primitives import QuadActionPrimitives
 from deep_q_learning import DeepQLearningAgent, State
 from reward_system import QuadRewardSystem
 from envs import *
+import time
+from aerial_gym.envs.base.base_task import BaseTask
 
 class GymInterface:
-    def __init__(self, env, env_cfg, debug=False):
+    def __init__(self, env:BaseTask, env_cfg, debug=False):
         # Set debug
         self.debug = debug
         # Set trace
         self.trace = False
         self.env=env
         self.env_cfg=env_cfg
-
+        
         # Declare command actions
         self.command_actions = torch.zeros((self.env_cfg.env.num_envs, 3))
         # Declare action primitives
@@ -34,6 +37,7 @@ class GymInterface:
              [2.0, 12.0, 7.1]
              ], dtype=torch.float32, device=self.device)
         self.goal_position = self.goal_position_options[0]
+        self.env.reset_idx([0])
         # Get initial drone position
         self.initial_position = self.get_current_position().clone()
         if self.debug:
@@ -43,9 +47,9 @@ class GymInterface:
         # Current image array
         self.image_set = torch.zeros((3, 1024), dtype=torch.float32, device=self.device)
         # Moving setpoint time counter
-        self.moving_setpoint_time_counter = 0.0
-        self.moving_setpoint_time_counter_increment = 0.5
-        self.env.reset_idx([0])
+        self.moving_setpoint_time_counter = 1.0
+        self.moving_setpoint_time_counter_increment = 1
+        
 
     def choose_new_goal_position(self):
         """Chooses a new goal position"""
@@ -121,17 +125,35 @@ class GymInterface:
         if self.check_if_near_goal():
             near_goal = True
             print("Reached goal!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            if self.debug: print("Final position: ", self.get_current_position())
+            if self.debug: 
+                orange = isaacgym.gymapi.Vec3(1,.5,.25)
+                #initial_position = self.get_current_position().clone()
+                #initial_position = isaacgym.gymapi.Vec3(initial_position[0], initial_position[1], initial_position[2])
+                goal_position = isaacgym.gymapi.Vec3(self.goal_position[0], 
+                                                     self.goal_position[1], 
+                                                     self.goal_position[2])
+                isaacgym.gymutil.draw_line(initial_position, goal_position,orange,self.env.gym,self.env.viewer,self.env.envs[0])
+                print("Final position: ", self.get_current_position())
+                # time.sleep(3)
+            reset = True
+                
+            
+
         
         if self.debug:
             print("dt_end: ", self.reward_function.dt_end)
-            print("Current position: ", self.get_current_position())
+            print("Current position: ", initial_position)
             print("End Position: ", self.get_current_position())
         return self.get_observation(), self.reward_function.determine_reward(collision,
                                                                              self.get_current_position()), reset, near_goal
 
     def get_observation(self):
-        return State(self.image_set, self.get_relative_postion().unsqueeze(0))
+        rel_position = self.get_relative_postion()
+        rel_position_unsqueeze = rel_position.unsqueeze(0)
+        if self.debug:
+            print("rel_position: ", rel_position)
+            print("rel_position_unsqueeze: ", rel_position_unsqueeze)
+        return State(self.image_set, rel_position_unsqueeze)
 
     def get_image_set(self):
         return self.image_set
@@ -171,9 +193,14 @@ class GymInterface:
             self.get_current_position())
         # This is the ghost setpoint that moves along the straight line path. Its distance
         # is something that we incrementally increase as time goes on.
-        distance_along_x_axis = self.moving_setpoint_time_counter - self.get_current_position()[0]
+        distance_along_x_axis = (self.moving_setpoint_time_counter-
+            (self.get_current_position()[0]-self.initial_position[0]))
         # Now we use the Pythagorean theorem to calculate the relative distance
-        relative_distance = torch.sqrt(perpendicular_distance**2 + distance_along_x_axis**2)
+        # Let b = Y, a= X, z=goal_z-currentPosition_z
+        z=self.goal_position[2] - self.get_current_position()[2]
+        relative_distance = torch.sqrt(self.get_current_position()[1]**2 + 
+                                       distance_along_x_axis**2+
+                                       z**2)
         if self.debug:
             print("relative_distance: ", relative_distance)
         return relative_distance
@@ -197,16 +224,39 @@ class GymInterface:
         """The relative position is the vector from the drone
         to the moving setpoint"""
         current_position = self.get_current_position()
-        moving_setpoint = self.calculate_perpendicular_intersection(
-            self.initial_position,
-            self.goal_position,
-            current_position)
+        # moving_setpoint = self.calculate_perpendicular_intersection(
+        #     self.initial_position,
+        #     self.goal_position,
+        #     current_position)
+        normOfLine =(  
+                        (self.goal_position[0]-self.initial_position[0])**2+
+                        (self.goal_position[1]-self.initial_position[1])**2+
+                        (self.goal_position[2]-self.initial_position[2])**2
+                    )**0.5
+        
+        u=torch.zeros( 3 , dtype=torch.float32, device=self.device)
+        u[0]=(self.goal_position[0]-self.initial_position[0])/normOfLine
+        u[1]=(self.goal_position[1]-self.initial_position[1])/normOfLine
+        u[2]=(self.goal_position[2]-self.initial_position[2])/normOfLine
+        du = u * self.moving_setpoint_time_counter
+
+        moving_setpoint = self.initial_position + du
+        #u=(self.goal_position - self.initial_position)*dn
+        
+
         # Every "second" the setpoint moves a certain distance along the x-axis
-        moving_setpoint[0] = moving_setpoint[0] + self.moving_setpoint_time_counter
-        relative_pos = moving_setpoint  - current_position
+        # moving_setpoint[0] = moving_setpoint[0] + self.moving_setpoint_time_counter
+        # moving_setpoint[0] = self.moving_setpoint_time_counter-(current_position[0]-self.initial_position[0])
+        relative_pos = current_position - moving_setpoint
+
+
         if self.debug:
+            print("----------------------")
+            print("current_position", current_position)
+            print("self.moving_setpoint_time_counter", self.moving_setpoint_time_counter)
             print("moving_setpoint", moving_setpoint)
             print("relative_pos: ", relative_pos)
+            print("----------------------")
         return relative_pos
 
     def check_if_near_goal(self):
