@@ -19,9 +19,12 @@ class AerialRobotCfgFinalProjectTier1(BaseConfig):
         get_privileged_obs = False # if True the states of all entitites in the environment will be returned as privileged observations, otherwise None will be returned
         num_actions = 4
         env_spacing = 1
-        episode_length_s = 1.21e+6 # episode length in seconds (14 days)
+        # episode_length_s = 1.21e+6 # episode length in seconds (14 days)
+        episode_length_s = 10 # episode length in seconds (14 days)
         num_control_steps_per_env_step = 100 # number of physics steps per env step
         enable_onboard_cameras = True  # enable onboard cameras
+        reset_on_collision = True  # reset environment when contact force on quadrotor is above a threshold
+        create_ground_plane = True  # create a ground plane
 
     class control:
         """

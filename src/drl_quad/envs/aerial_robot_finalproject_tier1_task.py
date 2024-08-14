@@ -129,7 +129,7 @@ class AerialRobotFinalProjectTier1(BaseTask):
         return
 
     def _create_envs(self):
-        print("\nCREATING AerialRobot for RBE 595 Final Project - Tier 1\n")
+        print("\nCREATING AerialRobot for WPI Research - Tier 1\n")
         asset_path = self.cfg.robot_asset.file.format(
             AERIAL_GYM_ROOT_DIR=AERIAL_GYM_ROOT_DIR)
         asset_root = os.path.dirname(asset_path)
@@ -225,7 +225,10 @@ class AerialRobotFinalProjectTier1(BaseTask):
         # Increment the position with current position
         new_position = position_increment + self.root_positions[0]
         new_position.to(self.device)
-        print("new_position",new_position)
+        
+        print("11 self.root_position [0]",self.root_positions[0])
+        print("11 new_position",new_position)
+
         # Increment the position with fixed coordinate
         # position_increment = position_increment + self.action_display_fixed_coordinate[0]
         
@@ -237,7 +240,7 @@ class AerialRobotFinalProjectTier1(BaseTask):
             # it is called in the render function.
             self.post_physics_step()
 
-        self.render(sync_frame_time=False)
+        self.render(sync_frame_time=True)
         self.render_cameras()
         
         self.progress_buf += 1
@@ -299,6 +302,7 @@ class AerialRobotFinalProjectTier1(BaseTask):
             # print("self.depth_image:", self.depth_image)
 
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
+        # TODO this needs to change if there is multiple environments as reset_env_ids is a tensor of failed environment indexes
         if len(reset_env_ids) > 0:
             self.reset_idx(reset_env_ids)
 
@@ -310,8 +314,11 @@ class AerialRobotFinalProjectTier1(BaseTask):
     def reset_idx(self, env_ids):
         num_resets = len(env_ids)
         self.root_states[env_ids] = self.initial_root_states[env_ids]
-        self.root_states[env_ids,
-                         0:3] = 2.0*torch_rand_float(-1.0, 1.0, (num_resets, 3), self.device)
+        # need to ensure drone starts on z-axis above 0
+        # self.root_states[env_ids,0:3] = 2.0*torch_rand_float(-1.0, 1.0, (num_resets, 3), self.device)
+        self.root_states[env_ids,0:2] = 2.0*torch_rand_float(-1.0, 1.0, (num_resets, 2), self.device)
+        self.root_states[env_ids,2:3] = 2.0*torch_rand_float(.2, 1.0, (num_resets, 1), self.device)
+
         self.root_states[env_ids,
                          7:10] = 0.2*torch_rand_float(-1.0, 1.0, (num_resets, 3), self.device)
         self.root_states[env_ids,
@@ -348,6 +355,7 @@ class AerialRobotFinalProjectTier1(BaseTask):
         self.action_input[:] = torch.cat([position, torch.tensor([0], device=self.device)])
 
         # clear position_increment for reset envs
+        # TODO this should reset when environment resets, we are losing inertia!!!!
         self.forces[:] = 0.0
         self.torques[:, :] = 0.0
 
@@ -439,16 +447,21 @@ def compute_quadcopter_reward(root_positions, root_quats, root_linvels, root_ang
     # resets due to episode length
     reset = torch.where(progress_buf >= max_episode_length - 1, ones, die)
     # print("reset1",reset)
-    reset = torch.where(torch.norm(root_positions, dim=1) > 35.0, ones, reset) # out of bounds for a norm distance of 20.0
+    reset = torch.where(torch.norm(root_positions, dim=1) > 45.0, ones, reset) # out of bounds for a norm distance of 20.0
     # print("reset2",reset)
     # Above a certain self.counter number, if the z coordinate is too close to ground, then reset
     if counter > -1:
-        ground_threshold = 0.15
+        ground_threshold = 0.19
         reset = torch.where(root_positions[:, 2] <= ground_threshold, ones, reset)
+        #print("reset after ground check:",reset)
+        #print("root_positions[:, 2]",root_positions[:, 2])
+        # reset if environment drone.x_location>=2-
         reset = torch.where(root_positions[:, 0] >= 20.0, ones, reset)
-        reset = torch.where(root_positions[:, 1] >= 20.0, ones, reset)
-        # print("reset3",reset)
+        # reset if environment drone.z_location>=10
+        reset = torch.where(root_positions[:, 2] >= 10.0, ones, reset)
+        #print("reset3",reset)
         drone_hit_ground = torch.where(root_positions[:, 2] <= ground_threshold, ones, die)
+        #print("drone_hit_ground",drone_hit_ground)
     else:
         drone_hit_ground = torch.zeros_like(reset_buf)
 
